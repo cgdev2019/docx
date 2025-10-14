@@ -1,0 +1,24 @@
+# IDE folders
+.idea/
+.vscode/
+
+# Build outputs
+/target/
+/out/
+/build/
+
+# Maven wrapper cache
+/.mvn/wrapper/maven-wrapper.jar
+/.mvn/wrapper/maven-wrapper.properties
+
+# Logs & reports
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Generated coverage / reports
+/site/
+/coverage/
+

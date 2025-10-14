@@ -1,0 +1,194 @@
+diff --git a/src/main/java/com/example/docx/html/DocxToHtml.java b/src/main/java/com/example/docx/html/DocxToHtml.java
+index 2944b82..0f6750b 100644
+--- a/src/main/java/com/example/docx/html/DocxToHtml.java
++++ b/src/main/java/com/example/docx/html/DocxToHtml.java
+@@ -303,8 +303,16 @@ public final class DocxToHtml {
+                                 StyleResolver styleResolver,
+                                 HyperlinkResolver hyperlinkResolver,
+                                 StyleRegistry registry,
+                                 Map<String, String> themeColors) {
+         StringBuilder builder = new StringBuilder();
+         String tableBackground = tableShadingColor(table.properties(), themeColors);
+-        builder.append("<table class=\"docx-table\">");
++        List<String> tableClasses = new ArrayList<>();
++        tableClasses.add("docx-table");
++        if (tableBackground != null) {
++            String tableClass = registry.registerTable(new TableCss(tableBackground));
++            if (tableClass != null) {
++                tableClasses.add(tableClass);
++            }
++        }
++        builder.append("<table class=\"").append(String.join(" ", tableClasses)).append("\">");
+         for (WordDocument.TableRow row : table.rows()) {
+             String rowBackground = tableRowShadingColor(row.properties(), themeColors);
+             List<String> rowClasses = new ArrayList<>();
+             if (rowBackground != null) {
+                 String rowClass = registry.registerRow(new TableRowCss(rowBackground));
+@@ -338,16 +346,14 @@ public final class DocxToHtml {
+         }
+         List<String> classes = new ArrayList<>();
+         classes.add("docx-cell");
+         cell.properties().verticalAlignment().ifPresent(val -> {
+             switch (val) {
+                 case "center" -> classes.add("docx-cell-middle");
+                 case "bottom" -> classes.add("docx-cell-bottom");
+                 default -> {
+                 }
+             }
+         });
+-        String background = tableCellShadingColor(cell.properties(), themeColors);
+-        if (background == null) {
+-            background = rowBackground;
+-        }
+-        if (background == null) {
+-            background = tableBackground;
+-        }
+-        if (background != null) {
+-            String cellClass = registry.registerCell(new TableCellCss(background));
++        String background = tableCellShadingColor(cell.properties(), themeColors);
++        if (background != null
++                && !java.util.Objects.equals(background, rowBackground)
++                && !java.util.Objects.equals(background, tableBackground)) {
++            String cellClass = registry.registerCell(new TableCellCss(background));
+             if (cellClass != null) {
+                 classes.add(cellClass);
+             }
+         }
+         StringBuilder cellBuilder = new StringBuilder();
+@@ -1198,11 +1204,33 @@ public final class DocxToHtml {
+             return "";
+         }
+     }
+ 
++    private record TableCss(String backgroundColor) {
++
++        boolean hasColor() {
++            return backgroundColor != null && !backgroundColor.isBlank();
++        }
++
++        String declarations() {
++            if (!hasColor()) {
++                return "";
++            }
++            return "background-color:" + backgroundColor;
++        }
++    }
++
+     private record TableRowCss(String backgroundColor) {
+ 
++        boolean hasColor() {
++            return backgroundColor != null && !backgroundColor.isBlank();
++        }
++
+         String declarations() {
+-            if (backgroundColor == null || backgroundColor.isBlank()) {
++            if (!hasColor()) {
+                 return "";
+             }
+             return "background-color:" + backgroundColor;
+         }
+     }
+ 
+     private record TableCellCss(String backgroundColor) {
+ 
++        boolean hasColor() {
++            return backgroundColor != null && !backgroundColor.isBlank();
++        }
++
+         String declarations() {
+-            if (backgroundColor == null || backgroundColor.isBlank()) {
++            if (!hasColor()) {
+                 return "";
+             }
+             return "background-color:" + backgroundColor;
+         }
+     }
+@@ -1219,9 +1247,11 @@ public final class DocxToHtml {
+     private static final class StyleRegistry {
+         private final Map<ParagraphCss, String> paragraphClasses = new LinkedHashMap<>();
+         private final Map<RunCss, String> runClasses = new LinkedHashMap<>();
++        private final Map<TableCss, String> tableClasses = new LinkedHashMap<>();
+         private final Map<TableRowCss, String> rowClasses = new LinkedHashMap<>();
+         private final Map<TableCellCss, String> cellClasses = new LinkedHashMap<>();
+         private final ParagraphCss baseParagraph;
+         private final RunCss baseRun;
+         private int paragraphIndex = 1;
+         private int runIndex = 1;
++        private int tableIndex = 1;
+         private int rowIndex = 1;
+         private int cellIndex = 1;
+         private static final int DEFAULT_PAGE_WIDTH_TWIPS = 11906;
+         private static final int DEFAULT_PAGE_HEIGHT_TWIPS = 16838;
+         private static final int DEFAULT_MARGIN_TWIPS = 1440;
+@@ -1249,20 +1279,30 @@ public final class DocxToHtml {
+             RunCss key = css == null ? RunCss.empty() : css;
+             return runClasses.computeIfAbsent(key, unused -> "s" + runIndex++);
+         }
+ 
++        String registerTable(TableCss css) {
++            if (css == null || !css.hasColor()) {
++                return null;
++            }
++            return tableClasses.computeIfAbsent(css, unused -> "t" + tableIndex++);
++        }
++
+         String registerRow(TableRowCss css) {
+-            if (css == null) {
++            if (css == null || !css.hasColor()) {
+                 return null;
+             }
+-            String declarations = css.declarations();
+-            if (declarations.isEmpty()) {
+-                return null;
+-            }
+             return rowClasses.computeIfAbsent(css, unused -> "r" + rowIndex++);
+         }
+ 
+         String registerCell(TableCellCss css) {
+-            if (css == null) {
++            if (css == null || !css.hasColor()) {
+                 return null;
+             }
+-            String declarations = css.declarations();
+-            if (declarations.isEmpty()) {
+-                return null;
+-            }
+             return cellClasses.computeIfAbsent(css, unused -> "c" + cellIndex++);
+         }
+ 
+         String buildCss(WordDocument document) {
+@@ -1321,16 +1361,34 @@ public final class DocxToHtml {
+             for (Map.Entry<RunCss, String> entry : runClasses.entrySet()) {
+                 String declarations = entry.getKey().declarations();
+                 if (!declarations.isEmpty()) {
+                     builder.append(".docx-body .").append(entry.getValue()).append("{").append(declarations).append("}");
+                     builder.append('\n');
+                 }
+             }
++            for (Map.Entry<TableCss, String> entry : tableClasses.entrySet()) {
++                String declarations = entry.getKey().declarations();
++                if (!declarations.isEmpty()) {
++                    String className = entry.getValue();
++                    builder.append(".docx-body table.").append(className).append("{").append(declarations).append("}");
++                    builder.append('\n');
++                    builder.append(".docx-body table.").append(className).append(" td,.docx-body table.")
++                            .append(className).append(" th{").append(declarations).append("}");
++                    builder.append('\n');
++                }
++            }
+             for (Map.Entry<TableRowCss, String> entry : rowClasses.entrySet()) {
+                 String declarations = entry.getKey().declarations();
+                 if (!declarations.isEmpty()) {
+-                    builder.append(".docx-body tr.").append(entry.getValue()).append("{").append(declarations).append("}");
++                    String className = entry.getValue();
++                    builder.append(".docx-body tr.").append(className).append("{").append(declarations).append("}");
++                    builder.append('\n');
++                    builder.append(".docx-body tr.").append(className).append(" > td,.docx-body tr.")
++                            .append(className).append(" > th{").append(declarations).append("}");
+                     builder.append('\n');
+                 }
+             }
+             for (Map.Entry<TableCellCss, String> entry : cellClasses.entrySet()) {
+                 String declarations = entry.getKey().declarations();
+                 if (!declarations.isEmpty()) {
+                     builder.append(".docx-body td.").append(entry.getValue()).append("{").append(declarations).append("}");
