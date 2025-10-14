@@ -1,4 +1,4 @@
-﻿package com.example.docx.html;
+package com.example.docx.html;
 
 import com.example.docx.model.DocxPackage;
 import com.example.docx.model.document.WordDocument;
