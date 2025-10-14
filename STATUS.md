@@ -1,4 +1,4 @@
-# Etat du projet DOCX Reader
+﻿# Etat du projet DOCX Reader
 
 ## Objectif & Contexte
 Le projet vise a livrer une bibliotheque Java 21 packagee Maven capable de lire integralement les fichiers DOCX et d'exposer un modele WordprocessingML riche.
@@ -17,6 +17,7 @@ Les principales parties prenantes sont le developpeur actuel et les integrateurs
   - 2025-10-14 - Durci XmlUtils.booleanElement et ajoute tests unitaires pour fiabiliser les attributs on/off (resultat : styles gras/italiques correctement remontes dans le modele).
 
 - **Modifications recentes**
+  - src/main/java/com/example/docx/html/* : refonte en renderers dedicaces (BlockRenderer, ParagraphRenderer, TableRenderer, StructuredDocumentTagRenderer) + utilitaires DocxHtmlUtils.
   - src/main/java/com/example/docx/html/DocxToHtml.java : cascade theme complete (table/ligne/cellule) via `tblStylePr`, propagation des runProperties et couleurs CSS pour les en-tetes.
   - src/test/java/com/example/docx/html/DocxToHtmlTest.java : scenarii sur shading paragraphe + tableau afin de verrouiller le rendu HTML.
   - src/test/java/com/example/docx/html/DocxToHtmlTest.java : ajout d'un test d'integration sur demo.docx (en-tete vert clair texte blanc).
@@ -28,18 +29,20 @@ Les principales parties prenantes sont le developpeur actuel et les integrateurs
   - Mapping des couleurs de shading basees sur le theme (symptomes : `themeFill` applique partiellement -> tables conservent un gris par defaut) - statut : **resolu** le 2025-10-14 (cascade table/ligne/cellule + tests demo.docx).
 
 ## Prochaines etapes (reprendre vite)
+- [ ] Comprendre pourquoi le tableau demo.docx (cellules contenant 93/35/54/43) n'applique pas le background #D3DFEE et corriger le mapping theme/override.
+- [ ] Revoir la generation des bordures (taille/couleur/style) pour tableaux, paragraphes et autres elements HTML afin qu'elles refletent le DOCX.
 - [x] Restaurer une version compilable de WordDocument puis reappliquer la validation stricte bloc par bloc (vigilance : conserver les nouvelles classes Bookmark).
 - [ ] Finaliser ParsingContext et adapter tous les parseurs (RunParser, ParagraphParser, TableParser, BlockParser, NotesParser, StylesParser) pour lever des exceptions sur les balises inconnues (commande : mvn -q -DskipTests compile, vigilance : gerer les namespaces additionnels comme DrawingML).
 - [x] Ajouter des tests unitaires couvrant les fichiers \file-sample_*.docx, les charts et les cas d'erreur (commande : mvn -q test, vigilance : verifier chaque test avec des docx minimaux generes en memoire).
 - [ ] Mettre a jour DocxReader pour filtrer proprement les parties autorisees et charger les charts sans dupliquer la logique (vigilance : ne pas oublier word/charts/_rels).
 - [x] Finaliser la resolution des couleurs de shading dans DocxToHtml : cascade theme et CSS dediees pour tables/entetes, tests d'integration passes.
 - [x] Diagnostiquer le rendu HTML des tables (theme shading non respecte) : cascade verifiee sur demo.docx, test automatise ajoute.
-
+- 
 ## Journal des mises a jour
-- 2025-10-15 - Finalisation du shading des tables via les styles de tableau (`tblStylePr`) et ajout d'un test d'integration sur demo.docx (DocxToHtml, DocxToHtmlTest).
-- 2025-10-14 - Tentative de resolution des couleurs de shading via la palette de theme : extraction `clrScheme`, application tint/shade, paragraphes OK mais rendu table a reprendre (DocxToHtml).
+- 2025-10-15 - Finalisation du shading des tables via les styles de tableau (tblStylePr) et ajout d'un test d'integration sur demo.docx (DocxToHtml, DocxToHtmlTest).
+- 2025-10-14 - Tentative de resolution des couleurs de shading via la palette de theme : extraction clrScheme, application tint/shade, paragraphes OK mais rendu table a reprendre (DocxToHtml).
 - 2025-10-14 - Ajout de tests Html ciblant shading paragraphe/table + correction du parsing booleen (XmlUtilsTest, DocxToHtmlTest).
-- 2025-10-14 - Ajout du convertisseur Docx?HTML avec feuille de style centralisee et gabarit ecran A4 (DocxToHtml).
+- 2025-10-14 - Ajout du convertisseur Docx->HTML avec feuille de style centralisee et gabarit ecran A4 (DocxToHtml).
 - 2025-10-14 - Ajout de tests d'integration sur les echantillons DOCX et resolution definitive de la regression de compilation.
 - 2025-10-14 - Mise a jour du statut apres tentative de durcissement du parsing (compilation a corriger).
 - 2025-10-14 - Ajustement du resume Objectif & Contexte pour respecter le format 3-5 phrases.
@@ -48,3 +51,4 @@ Les principales parties prenantes sont le developpeur actuel et les integrateurs
 ## Note pratique
   - Java 21 requis (JAVA_HOME="C:\\Program Files\\Java\\jdk-21").
   - Commandes utiles : ./mvnw -q test
+

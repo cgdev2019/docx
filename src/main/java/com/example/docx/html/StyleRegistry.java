@@ -5,7 +5,7 @@ import com.example.docx.model.document.WordDocument;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public final class StyleRegistry {
+final class StyleRegistry {
     private final Map<ParagraphCss, String> paragraphClasses = new LinkedHashMap<>();
     private final Map<RunCss, String> runClasses = new LinkedHashMap<>();
     private final Map<TableCss, String> tableClasses = new LinkedHashMap<>();
@@ -243,7 +243,7 @@ public final class StyleRegistry {
 
     private static String twipsToCssCm(int twips) {
         double cm = twips * TWIP_TO_CM;
-        return DocxToHtml.formatDecimal(cm) + "cm";
+        return DocxHtmlUtils.formatDecimal(cm) + "cm";
     }
 
     private record PageLayout(String pageWidth,

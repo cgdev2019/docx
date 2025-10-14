@@ -5,7 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-public record RunCss(boolean bold,
+record RunCss(boolean bold,
               boolean italic,
               boolean underline,
               Set<String> decorationLines,
@@ -23,16 +23,16 @@ public record RunCss(boolean bold,
     }
 
     static RunCss from(StyleResolver.ResolvedRun resolved) {
-        String color = resolved.color().flatMap(DocxToHtml::normalizeColor).orElse(null);
-        String background = resolved.highlight().flatMap(DocxToHtml::normalizeHighlight).orElse(null);
+        String color = resolved.color().flatMap(DocxHtmlUtils::normalizeColor).orElse(null);
+        String background = resolved.highlight().flatMap(DocxHtmlUtils::normalizeHighlight).orElse(null);
         CssLength fontSize = resolved.fontSizeHalfPoints()
                 .map(size -> CssLength.points(size / 2.0d))
                 .orElse(null);
-        String fontFamily = DocxToHtml.fontStackToCss(resolved.fontStack());
-        String verticalAlign = resolved.verticalAlignment().map(DocxToHtml::normalizeVerticalAlignment).orElse(null);
+        String fontFamily = DocxHtmlUtils.fontStackToCss(resolved.fontStack());
+        String verticalAlign = resolved.verticalAlignment().map(DocxHtmlUtils::normalizeVerticalAlignment).orElse(null);
         String underlineType = resolved.underlineType();
         boolean underline = resolved.underline() && (underlineType == null || !"none".equalsIgnoreCase(underlineType));
-        String decorationStyle = DocxToHtml.decorationStyle(underlineType, resolved.doubleStrike());
+        String decorationStyle = DocxHtmlUtils.decorationStyle(underlineType, resolved.doubleStrike());
         Set<String> lines = new LinkedHashSet<>();
         if (underline) {
             lines.add("underline");

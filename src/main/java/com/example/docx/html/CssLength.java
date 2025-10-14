@@ -7,7 +7,7 @@ public final class CssLength {
     private final String unit;
 
     private CssLength(double value, String unit) {
-        this.value = DocxToHtml.roundLength(value);
+        this.value = DocxHtmlUtils.roundLength(value);
         this.unit = unit;
     }
 
@@ -23,7 +23,7 @@ public final class CssLength {
         if (Math.abs(value) < 0.0005d) {
             return "0";
         }
-        return DocxToHtml.formatDecimal(value) + unit;
+        return DocxHtmlUtils.formatDecimal(value) + unit;
     }
 
     @Override

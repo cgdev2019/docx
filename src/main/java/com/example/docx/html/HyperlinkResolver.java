@@ -4,7 +4,7 @@ import com.example.docx.model.relationship.RelationshipSet;
 
 import java.util.Optional;
 
-public final class HyperlinkResolver {
+final class HyperlinkResolver {
     private final RelationshipSet relationships;
 
     HyperlinkResolver(RelationshipSet relationships) {

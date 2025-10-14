@@ -1,6 +1,6 @@
 package com.example.docx.html;
 
-public record TableCellCss(String backgroundColor) {
+record TableCellCss(String backgroundColor) {
 
     boolean hasColor() {
         return backgroundColor != null && !backgroundColor.isBlank();

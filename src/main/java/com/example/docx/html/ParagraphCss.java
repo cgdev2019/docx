@@ -1,11 +1,12 @@
 package com.example.docx.html;
 
+
 import com.example.docx.model.document.WordDocument;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public record ParagraphCss(String textAlign,
+record ParagraphCss(String textAlign,
                     CssLength marginTop,
                     CssLength marginBottom,
                     CssLength marginLeft,
@@ -27,22 +28,22 @@ public record ParagraphCss(String textAlign,
             return ParagraphCss.empty();
         }
         WordDocument.Spacing spacing = resolved.spacing();
-        CssLength top = spacing != null ? DocxToHtml.toCssLength(spacing.before().orElse(null)) : null;
-        CssLength bottom = spacing != null ? DocxToHtml.toCssLength(spacing.after().orElse(null)) : null;
+        CssLength top = spacing != null ? DocxHtmlUtils.toCssLength(spacing.before().orElse(null)) : null;
+        CssLength bottom = spacing != null ? DocxHtmlUtils.toCssLength(spacing.after().orElse(null)) : null;
         WordDocument.Indentation indentation = resolved.indentation();
-        CssLength left = indentation != null ? DocxToHtml.toCssLength(indentation.left().orElse(null)) : null;
-        CssLength right = indentation != null ? DocxToHtml.toCssLength(indentation.right().orElse(null)) : null;
-        CssLength indent = DocxToHtml.computeTextIndent(indentation);
-        String lineHeight = DocxToHtml.computeLineHeight(spacing);
+        CssLength left = indentation != null ? DocxHtmlUtils.toCssLength(indentation.left().orElse(null)) : null;
+        CssLength right = indentation != null ? DocxHtmlUtils.toCssLength(indentation.right().orElse(null)) : null;
+        CssLength indent = DocxHtmlUtils.computeTextIndent(indentation);
+        String lineHeight = DocxHtmlUtils.computeLineHeight(spacing);
         CssLength paragraphFontSize = defaultRun.fontSizeHalfPoints()
                 .map(size -> CssLength.points(size / 2.0d))
                 .orElse(null);
-        String paragraphFontFamily = DocxToHtml.fontStackToCss(defaultRun.fontStack());
+        String paragraphFontFamily = DocxHtmlUtils.fontStackToCss(defaultRun.fontStack());
         if (paragraphFontFamily != null && paragraphFontFamily.isBlank()) {
             paragraphFontFamily = null;
         }
         String background = resolved.shadingColor();
-        return new ParagraphCss(DocxToHtml.alignmentToCss(resolved.alignment()), top, bottom, left, right, indent,
+        return new ParagraphCss(DocxHtmlUtils.alignmentToCss(resolved.alignment()), top, bottom, left, right, indent,
                 lineHeight, paragraphFontSize, paragraphFontFamily, background, resolved.keepTogether(),
                 resolved.keepWithNext(), resolved.pageBreakBefore());
     }

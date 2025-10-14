@@ -9,7 +9,7 @@ import org.w3c.dom.Element;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public final class StyleResolver {
+final class StyleResolver {
     private final StyleDefinitions definitions;
     private final Map<String, StyleDefinitions.Style> stylesById;
     private final List<WordDocument.RunProperties> defaultCharacterRunProperties;
@@ -103,10 +103,10 @@ public final class StyleResolver {
         boolean keepTogether = effective.keepTogether() || paragraphFallbacks.stream().anyMatch(WordDocument.ParagraphProperties::keepTogether);
         boolean keepWithNext = effective.keepWithNext() || paragraphFallbacks.stream().anyMatch(WordDocument.ParagraphProperties::keepWithNext);
         boolean pageBreakBefore = effective.pageBreakBefore() || paragraphFallbacks.stream().anyMatch(WordDocument.ParagraphProperties::pageBreakBefore);
-        String shading = DocxToHtml.paragraphShadingColor(effective, themeColors);
+        String shading = DocxHtmlUtils.paragraphShadingColor(effective, themeColors);
         if (shading == null) {
             for (WordDocument.ParagraphProperties fallback : paragraphFallbacks) {
-                shading = DocxToHtml.paragraphShadingColor(fallback, themeColors);
+                shading = DocxHtmlUtils.paragraphShadingColor(fallback, themeColors);
                 if (shading != null) {
                     break;
                 }
@@ -198,7 +198,7 @@ public final class StyleResolver {
         if (size == null && complexSize != null) {
             size = complexSize;
         }
-        List<String> fontStack = DocxToHtml.computeFontStack(fonts);
+        List<String> fontStack = DocxHtmlUtils.computeFontStack(fonts);
         return new ResolvedRun(bold, italic, underline, underlineType, strike, doubleStrike,
                 smallCaps, allCaps, vanish, Optional.ofNullable(color),
                 Optional.ofNullable(highlight), Optional.ofNullable(verticalAlign),
@@ -406,7 +406,7 @@ public final class StyleResolver {
             if (tableBackground == null) {
                 tableBackground = style.tableProperties()
                         .flatMap(StyleDefinitions.TableStyleProperties::rawProperties)
-                        .map(element -> DocxToHtml.shadingColorFromElement(element, themeColors))
+                        .map(element -> DocxHtmlUtils.shadingColorFromElement(element, themeColors))
                         .orElse(null);
             }
             style.rawStyle().ifPresent(raw -> {
@@ -431,10 +431,10 @@ public final class StyleResolver {
             return null;
         }
         Element tcPr = XmlUtils.firstChild(tblStylePr, Namespaces.WORD_MAIN, "tcPr").orElse(null);
-        String background = DocxToHtml.shadingColorFromElement(tcPr, themeColors);
+        String background = DocxHtmlUtils.shadingColorFromElement(tcPr, themeColors);
         if (background == null) {
             Element tblPr = XmlUtils.firstChild(tblStylePr, Namespaces.WORD_MAIN, "tblPr").orElse(null);
-            background = DocxToHtml.shadingColorFromElement(tblPr, themeColors);
+            background = DocxHtmlUtils.shadingColorFromElement(tblPr, themeColors);
         }
         Element rPr = XmlUtils.firstChild(tblStylePr, Namespaces.WORD_MAIN, "rPr").orElse(null);
         WordDocument.RunProperties runProperties = toRunProperties(rPr);
