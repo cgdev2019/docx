@@ -2,12 +2,19 @@ package com.example.docx.html;
 
 record TableRowCss(String backgroundColor) {
 
-    boolean hasColor() {
+    boolean hasDeclarations() {
         return backgroundColor != null && !backgroundColor.isBlank();
     }
 
-    String declarations() {
-        if (!hasColor()) {
+    String rowDeclarations() {
+        if (!hasDeclarations()) {
+            return "";
+        }
+        return "background-color:" + backgroundColor;
+    }
+
+    String cellCascadeDeclarations() {
+        if (!hasDeclarations()) {
             return "";
         }
         return "background-color:" + backgroundColor;

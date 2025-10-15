@@ -272,6 +272,56 @@ final class DocxHtmlUtils {
                 .orElse(null);
     }
 
+    static TableBorders tableBorders(WordDocument.TableProperties properties,
+                                     Map<String, String> themeColors) {
+        if (properties == null) {
+            return TableBorders.empty();
+        }
+        return properties.rawProperties()
+                .map(element -> tableBordersFromRaw(element, themeColors))
+                .orElse(TableBorders.empty());
+    }
+
+    static BorderDefinition tableCellBorders(WordDocument.TableCellProperties properties,
+                                             Map<String, String> themeColors) {
+        if (properties == null) {
+            return BorderDefinition.empty();
+        }
+        return properties.rawProperties()
+                .map(element -> bordersFromChild(element, "tcBorders", themeColors))
+                .orElse(BorderDefinition.empty());
+    }
+
+    static BorderDefinition paragraphBorders(WordDocument.ParagraphProperties properties,
+                                             Map<String, String> themeColors) {
+        if (properties == null) {
+            return BorderDefinition.empty();
+        }
+        return properties.rawProperties()
+                .map(element -> bordersFromChild(element, "pBdr", themeColors))
+                .orElse(BorderDefinition.empty());
+    }
+
+    static BorderDefinition runBorders(WordDocument.RunProperties properties,
+                                       Map<String, String> themeColors) {
+        if (properties == null) {
+            return BorderDefinition.empty();
+        }
+        return properties.rawProperties()
+                .map(element -> {
+                    Element border = XmlUtils.firstChild(element, Namespaces.WORD_MAIN, "bdr").orElse(null);
+                    if (border == null) {
+                        return BorderDefinition.empty();
+                    }
+                    BorderDefinition.BorderEdge edge = parseBorderEdge(border, themeColors);
+                    if (edge == null) {
+                        return BorderDefinition.empty();
+                    }
+                    return BorderDefinition.of(edge, edge, edge, edge);
+                })
+                .orElse(BorderDefinition.empty());
+    }
+
     static String shadingColorFromElement(Element parent, Map<String, String> themeColors) {
         if (parent == null) {
             return null;
@@ -304,6 +354,99 @@ final class DocxHtmlUtils {
             }
         }
         return null;
+    }
+
+    static TableBorders tableBordersFromRaw(Element properties, Map<String, String> themeColors) {
+        if (properties == null) {
+            return TableBorders.empty();
+        }
+        Element borders = XmlUtils.firstChild(properties, Namespaces.WORD_MAIN, "tblBorders").orElse(null);
+        if (borders == null) {
+            return TableBorders.empty();
+        }
+        BorderDefinition perimeter = BorderDefinition.of(
+                parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "top").orElse(null), themeColors),
+                parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "right").orElse(null), themeColors),
+                parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "bottom").orElse(null), themeColors),
+                parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "left").orElse(null), themeColors)
+        );
+        BorderDefinition insideH = BorderDefinition.empty();
+        BorderDefinition insideV = BorderDefinition.empty();
+        BorderDefinition.BorderEdge horiz = parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "insideH").orElse(null), themeColors);
+        if (horiz != null) {
+            insideH = BorderDefinition.of(horiz, null, horiz, null);
+        }
+        BorderDefinition.BorderEdge vert = parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "insideV").orElse(null), themeColors);
+        if (vert != null) {
+            insideV = BorderDefinition.of(null, vert, null, vert);
+        }
+        return new TableBorders(perimeter, insideH, insideV);
+    }
+
+    private static BorderDefinition bordersFromChild(Element parent, String localName, Map<String, String> themeColors) {
+        Element borders = XmlUtils.firstChild(parent, Namespaces.WORD_MAIN, localName).orElse(null);
+        if (borders == null) {
+            return BorderDefinition.empty();
+        }
+        BorderDefinition.BorderEdge top = parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "top").orElse(null), themeColors);
+        BorderDefinition.BorderEdge right = parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "right").orElse(null), themeColors);
+        BorderDefinition.BorderEdge bottom = parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "bottom").orElse(null), themeColors);
+        BorderDefinition.BorderEdge left = parseBorderEdge(XmlUtils.firstChild(borders, Namespaces.WORD_MAIN, "left").orElse(null), themeColors);
+        return BorderDefinition.of(top, right, bottom, left);
+    }
+
+    private static BorderDefinition.BorderEdge parseBorderEdge(Element element, Map<String, String> themeColors) {
+        if (element == null) {
+            return null;
+        }
+        String value = firstNonBlank(XmlUtils.attribute(element, "w:val"), XmlUtils.attribute(element, "val"));
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String style = borderStyleToCss(value.trim().toLowerCase(Locale.ROOT));
+        if (style == null || "none".equals(style)) {
+            return null;
+        }
+        CssLength width = borderWidth(XmlUtils.intAttribute(element, "w:sz"));
+        String color = resolveBorderColor(element, themeColors);
+        return new BorderDefinition.BorderEdge(width, style, color);
+    }
+
+    private static CssLength borderWidth(Integer size) {
+        if (size == null || size <= 0) {
+            return CssLength.points(0.5d);
+        }
+        return CssLength.points(size / 8.0d);
+    }
+
+    private static String resolveBorderColor(Element element, Map<String, String> themeColors) {
+        String direct = firstNonBlank(XmlUtils.attribute(element, "w:color"), XmlUtils.attribute(element, "color"));
+        String color = normalizeColor(direct).orElse(null);
+        if (color != null) {
+            return color;
+        }
+        String themeColor = firstNonBlank(XmlUtils.attribute(element, "w:themeColor"), XmlUtils.attribute(element, "themeColor"));
+        if (themeColor != null) {
+            String base = resolveThemeColor(themeColor, themeColors);
+            if (base != null) {
+                String tint = firstNonBlank(XmlUtils.attribute(element, "w:themeTint"), XmlUtils.attribute(element, "themeTint"));
+                String shade = firstNonBlank(XmlUtils.attribute(element, "w:themeShade"), XmlUtils.attribute(element, "themeShade"));
+                return applyThemeTintShade(base, tint, shade);
+            }
+        }
+        return null;
+    }
+
+    private static String borderStyleToCss(String value) {
+        return switch (value) {
+            case "nil", "none" -> "none";
+            case "double", "triple", "thickthinmediumgap", "thinthickmediumgap", "thickbetweenthinmediumgap",
+                    "thinthickthinmediumgap", "thickthinlargegap", "thinthicklargegap",
+                    "thickbetweenthinlargegap", "thinthickthinlargegap", "doublewave" -> "double";
+            case "dotted", "dotdash", "dotdotdash", "dashdot", "dashdotdot" -> "dotted";
+            case "dashed", "dashsmallgap", "dashlargegap" -> "dashed";
+            default -> "solid";
+        };
     }
 
     private static Map<String, String> createHighlightColorMap() {
@@ -405,6 +548,36 @@ final class DocxHtmlUtils {
             return 255;
         }
         return value;
+    }
+
+    static class TableBorders {
+        private final BorderDefinition perimeter;
+        private final BorderDefinition insideHorizontal;
+        private final BorderDefinition insideVertical;
+
+        private TableBorders(BorderDefinition perimeter,
+                             BorderDefinition insideHorizontal,
+                             BorderDefinition insideVertical) {
+            this.perimeter = perimeter == null ? BorderDefinition.empty() : perimeter;
+            this.insideHorizontal = insideHorizontal == null ? BorderDefinition.empty() : insideHorizontal;
+            this.insideVertical = insideVertical == null ? BorderDefinition.empty() : insideVertical;
+        }
+
+        static TableBorders empty() {
+            return new TableBorders(BorderDefinition.empty(), BorderDefinition.empty(), BorderDefinition.empty());
+        }
+
+        BorderDefinition perimeter() {
+            return perimeter;
+        }
+
+        BorderDefinition insideHorizontal() {
+            return insideHorizontal;
+        }
+
+        BorderDefinition insideVertical() {
+            return insideVertical;
+        }
     }
     private static String normalizeFontName(String font) {
         if (font == null) {

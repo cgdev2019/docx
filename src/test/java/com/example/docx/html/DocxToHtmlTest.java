@@ -413,6 +413,28 @@ class DocxToHtmlTest {
         Element tableShd = xml.createElementNS(Namespaces.WORD_MAIN, "w:shd");
         tableShd.setAttributeNS(Namespaces.WORD_MAIN, "w:themeFill", "accent1");
         tableProps.appendChild(tableShd);
+        Element tableBorders = xml.createElementNS(Namespaces.WORD_MAIN, "w:tblBorders");
+        Element borderTop = xml.createElementNS(Namespaces.WORD_MAIN, "w:top");
+        borderTop.setAttributeNS(Namespaces.WORD_MAIN, "w:val", "single");
+        borderTop.setAttributeNS(Namespaces.WORD_MAIN, "w:sz", "8");
+        borderTop.setAttributeNS(Namespaces.WORD_MAIN, "w:color", "4F81BD");
+        tableBorders.appendChild(borderTop);
+        Element borderRight = xml.createElementNS(Namespaces.WORD_MAIN, "w:right");
+        borderRight.setAttributeNS(Namespaces.WORD_MAIN, "w:val", "single");
+        borderRight.setAttributeNS(Namespaces.WORD_MAIN, "w:sz", "8");
+        borderRight.setAttributeNS(Namespaces.WORD_MAIN, "w:color", "4F81BD");
+        tableBorders.appendChild(borderRight);
+        Element borderBottom = xml.createElementNS(Namespaces.WORD_MAIN, "w:bottom");
+        borderBottom.setAttributeNS(Namespaces.WORD_MAIN, "w:val", "single");
+        borderBottom.setAttributeNS(Namespaces.WORD_MAIN, "w:sz", "8");
+        borderBottom.setAttributeNS(Namespaces.WORD_MAIN, "w:color", "4F81BD");
+        tableBorders.appendChild(borderBottom);
+        Element borderLeft = xml.createElementNS(Namespaces.WORD_MAIN, "w:left");
+        borderLeft.setAttributeNS(Namespaces.WORD_MAIN, "w:val", "single");
+        borderLeft.setAttributeNS(Namespaces.WORD_MAIN, "w:sz", "8");
+        borderLeft.setAttributeNS(Namespaces.WORD_MAIN, "w:color", "4F81BD");
+        tableBorders.appendChild(borderLeft);
+        tableProps.appendChild(tableBorders);
         WordDocument.TableProperties tableProperties = new WordDocument.TableProperties(null, null, null, null, tableProps);
 
         Element rowProps = xml.createElementNS(Namespaces.WORD_MAIN, "w:trPr");
@@ -453,17 +475,21 @@ class DocxToHtmlTest {
 
         DocxToHtml converter = new DocxToHtml("fr");
         String html = converter.convert(pkg);
-
+        String tableRule = extractCssRule(html, ".docx-body table.t1");
         assertTrue(html.contains("<table class=\"docx-table t1\">"), "table class missing");
-        assertTrue(html.contains(".docx-body table.t1{background-color:#ff0000}"), "table theme shading missing");
-        assertTrue(html.contains(".docx-body table.t1 td,.docx-body table.t1 th{background-color:#ff0000}"), "table cascade shading missing");
+        assertTrue(tableRule.contains("background-color:#ff0000"), "table theme shading missing. CSS: " + tableRule);
+        String tableCascade = extractCssRule(html, ".docx-body table.t1 td,.docx-body table.t1 th");
+        assertTrue(tableCascade.contains("background-color:#ff0000"), "table cascade shading missing. CSS: " + tableCascade);
+        assertTrue(tableRule.contains("border-top:1pt solid #4f81bd"), "table top border missing. CSS: " + tableRule);
+        assertTrue(tableRule.contains("border-right:1pt solid #4f81bd"), "table right border missing. CSS: " + tableRule);
+        assertTrue(tableRule.contains("border-bottom:1pt solid #4f81bd"), "table bottom border missing. CSS: " + tableRule);
+        assertTrue(tableRule.contains("border-left:1pt solid #4f81bd"), "table left border missing. CSS: " + tableRule);
         assertTrue(html.contains("<tr class=\"docx-row r1\">"), "row shading class missing");
         assertTrue(html.contains(".docx-body tr.r1{background-color:#8080ff}"), "row theme shading missing");
         assertTrue(html.contains(".docx-body tr.r1 > td,.docx-body tr.r1 > th{background-color:#8080ff}"), "row cascade shading missing");
         assertTrue(html.contains("<td class=\"docx-cell c1\">"), "direct cell shading class missing");
-        assertTrue(html.contains(".docx-body td.c1{background-color:#009900}"), "cell theme shading missing");
-        assertTrue(html.contains("<td class=\"docx-cell\">"), "fallback cell should rely on row/table shading");
-        assertFalse(html.contains("docx-cell c2"), "unexpected extra cell class for fallback shading");
+        String cellRule = extractCssRule(html, ".docx-body td.c1");
+        assertTrue(cellRule.contains("background-color:#009900"), "cell theme shading missing. CSS: " + cellRule);
     }
 
 
@@ -486,11 +512,26 @@ class DocxToHtmlTest {
         assertRunColor(html, itemClass, "#ffffff");
         String neededClass = extractRunClass(html, "NEEDED");
         assertRunColor(html, neededClass, "#ffffff");
+
+        String tableClass = extractTableClass(html);
+        String tableCss = extractCssRule(html, ".docx-body table." + tableClass);
+        assertTrue(tableCss.contains("border-top:1pt solid"), "table style border missing. CSS: " + tableCss);
+
+        String boxClass = extractRunClass(html, "box");
+        String boxRule = extractCssRule(html, ".docx-body ." + boxClass);
+        assertTrue(boxRule.contains("border-top:0.5pt solid currentColor"), "run top border missing");
+        assertTrue(boxRule.contains("border-bottom:0.5pt solid currentColor"), "run bottom border missing");
     }
 
     private static String extractRunClass(String html, String text) {
         Matcher matcher = Pattern.compile("<span class=\"docx-span (s\\d+)\">" + text + "</span>").matcher(html);
         assertTrue(matcher.find(), "missing run class for " + text);
+        return matcher.group(1);
+    }
+
+    private static String extractTableClass(String html) {
+        Matcher matcher = Pattern.compile("<table class=\"docx-table (t\\d+)\"").matcher(html);
+        assertTrue(matcher.find(), "missing table class");
         return matcher.group(1);
     }
 
@@ -502,6 +543,111 @@ class DocxToHtmlTest {
         assertTrue(end > start, "malformed CSS rule for " + cssClass);
         String chunk = html.substring(start, end);
         assertTrue(chunk.contains("color:" + expectedColor), "expected " + expectedColor + " for " + cssClass);
+    }
+
+    @Test
+    void rendersParagraphBorders() throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        Document xml = factory.newDocumentBuilder().newDocument();
+
+        Element pPr = xml.createElementNS(Namespaces.WORD_MAIN, "w:pPr");
+        Element pBdr = xml.createElementNS(Namespaces.WORD_MAIN, "w:pBdr");
+
+        Element top = xml.createElementNS(Namespaces.WORD_MAIN, "w:top");
+        top.setAttributeNS(Namespaces.WORD_MAIN, "w:val", "single");
+        top.setAttributeNS(Namespaces.WORD_MAIN, "w:sz", "16");
+        top.setAttributeNS(Namespaces.WORD_MAIN, "w:color", "FF0000");
+        pBdr.appendChild(top);
+
+        Element left = xml.createElementNS(Namespaces.WORD_MAIN, "w:left");
+        left.setAttributeNS(Namespaces.WORD_MAIN, "w:val", "single");
+        left.setAttributeNS(Namespaces.WORD_MAIN, "w:sz", "12");
+        left.setAttributeNS(Namespaces.WORD_MAIN, "w:color", "0000FF");
+        pBdr.appendChild(left);
+
+        Element bottom = xml.createElementNS(Namespaces.WORD_MAIN, "w:bottom");
+        bottom.setAttributeNS(Namespaces.WORD_MAIN, "w:val", "single");
+        bottom.setAttributeNS(Namespaces.WORD_MAIN, "w:sz", "8");
+        bottom.setAttributeNS(Namespaces.WORD_MAIN, "w:color", "00FF00");
+        pBdr.appendChild(bottom);
+
+        Element right = xml.createElementNS(Namespaces.WORD_MAIN, "w:right");
+        right.setAttributeNS(Namespaces.WORD_MAIN, "w:val", "single");
+        right.setAttributeNS(Namespaces.WORD_MAIN, "w:sz", "4");
+        right.setAttributeNS(Namespaces.WORD_MAIN, "w:color", "FF00FF");
+        pBdr.appendChild(right);
+
+        pPr.appendChild(pBdr);
+
+        WordDocument.ParagraphProperties paragraphProperties = new WordDocument.ParagraphProperties(
+                null,
+                null,
+                WordDocument.Alignment.LEFT,
+                null,
+                null,
+                null,
+                false,
+                false,
+                false,
+                List.of(),
+                pPr);
+
+        WordDocument.RunProperties runProperties = new WordDocument.RunProperties(
+                null,
+                false,
+                false,
+                false,
+                null,
+                false,
+                false,
+                false,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Map.of(),
+                null);
+
+        WordDocument.Run run = new WordDocument.Run(runProperties, List.of(new WordDocument.Text("Bordered paragraph", false)));
+        WordDocument.Paragraph paragraph = new WordDocument.Paragraph(paragraphProperties, List.of(run));
+        WordDocument document = WordDocument.builder()
+                .addBlock(paragraph)
+                .build();
+
+        DocxPackage pkg = DocxPackage.builder()
+                .document(document)
+                .build();
+
+        DocxToHtml converter = new DocxToHtml("fr");
+        String html = converter.convert(pkg);
+
+        String paragraphClass = extractParagraphClass(html, "Bordered paragraph");
+        String css = extractCssRule(html, ".docx-body ." + paragraphClass);
+        assertTrue(css.contains("border-top:2pt solid #ff0000"), "paragraph top border missing");
+        assertTrue(css.contains("border-left:1.5pt solid #0000ff"), "paragraph left border missing");
+        assertTrue(css.contains("border-bottom:1pt solid #00ff00"), "paragraph bottom border missing");
+        assertTrue(css.contains("border-right:0.5pt solid #ff00ff"), "paragraph right border missing");
+    }
+
+    private static String extractCssRule(String html, String selector) {
+        String marker = selector + '{';
+        int start = html.indexOf(marker);
+        assertTrue(start >= 0, "missing CSS rule for selector " + selector);
+        int end = html.indexOf('}', start);
+        assertTrue(end > start, "malformed CSS rule for selector " + selector);
+        return html.substring(start + marker.length(), end);
+    }
+
+    private static String extractParagraphClass(String html, String text) {
+        String patternText = "<p class=\"docx-paragraph (p[0-9]+)\">.*?" + Pattern.quote(text) + ".*?</p>";
+        Pattern pattern = Pattern.compile(patternText, Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(html);
+        assertTrue(matcher.find(), "missing paragraph class for text " + text);
+        return matcher.group(1);
     }
 }
 

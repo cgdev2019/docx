@@ -22,19 +22,22 @@ final class TableRenderer {
         if (tableBackground == null) {
             tableBackground = tableStyle.tableBackground();
         }
+        DocxHtmlUtils.TableBorders directBorders = DocxHtmlUtils.tableBorders(table.properties(), context.themeColors());
+        BorderDefinition tablePerimeter = tableStyle.tableBorders().overrideWith(directBorders.perimeter());
+        BorderDefinition insideHorizontal = tableStyle.insideHorizontal().overrideWith(directBorders.insideHorizontal());
+        BorderDefinition insideVertical = tableStyle.insideVertical().overrideWith(directBorders.insideVertical());
         List<String> tableClasses = new ArrayList<>();
         tableClasses.add("docx-table");
-        if (tableBackground != null) {
-            String tableClass = context.styleRegistry().registerTable(new TableCss(tableBackground));
-            if (tableClass != null) {
-                tableClasses.add(tableClass);
-            }
+        TableCss tableCss = new TableCss(tableBackground, tablePerimeter);
+        String tableClass = context.styleRegistry().registerTable(tableCss);
+        if (tableClass != null) {
+            tableClasses.add(tableClass);
         }
         StringBuilder builder = new StringBuilder();
         builder.append("<table class=\"").append(String.join(" ", tableClasses)).append("\">");
         for (int rowIndex = 0; rowIndex < rowCount; rowIndex++) {
             WordDocument.TableRow row = table.rows().get(rowIndex);
-            StyleResolver.RegionStyle region = tableStyle.rowRegion(rowIndex, rowCount);
+            StyleResolver.RegionStyle region = tableStyle.rowRegion(row.properties(), rowIndex, rowCount);
             String rowBackground = DocxHtmlUtils.tableRowShadingColor(row.properties(), context.themeColors());
             if (rowBackground == null && region != null) {
                 rowBackground = region.backgroundColor();
@@ -44,20 +47,42 @@ final class TableRenderer {
                 rowFallbacks.add(region.runProperties());
             }
             List<String> rowClasses = new ArrayList<>();
-            if (rowBackground != null) {
-                String rowClass = context.styleRegistry().registerRow(new TableRowCss(rowBackground));
-                if (rowClass != null) {
-                    rowClasses.add("docx-row");
-                    rowClasses.add(rowClass);
-                }
+            TableRowCss rowCss = new TableRowCss(rowBackground);
+            String rowClass = context.styleRegistry().registerRow(rowCss);
+            if (rowClass != null) {
+                rowClasses.add("docx-row");
+                rowClasses.add(rowClass);
             }
             builder.append("<tr");
             if (!rowClasses.isEmpty()) {
                 builder.append(" class=\"").append(String.join(" ", rowClasses)).append("\"");
             }
             builder.append(">");
-            for (WordDocument.TableCell cell : row.cells()) {
-                builder.append(renderTableCell(cell, rowBackground, tableBackground, rowFallbacks));
+            int columnCount = row.cells().size();
+            for (int columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+                WordDocument.TableCell cell = row.cells().get(columnIndex);
+                BorderDefinition cellBorder = DocxHtmlUtils.tableCellBorders(cell.properties(), context.themeColors());
+                if (region != null && region.borders() != null && !region.borders().isEmpty()) {
+                    cellBorder = cellBorder.fillMissing(region.borders());
+                }
+                BorderDefinition.BorderEdge topEdge = cellBorder.top();
+                if (topEdge == null) {
+                    topEdge = (rowIndex == 0) ? tablePerimeter.top() : insideHorizontal.top();
+                }
+                BorderDefinition.BorderEdge bottomEdge = cellBorder.bottom();
+                if (bottomEdge == null) {
+                    bottomEdge = (rowIndex == rowCount - 1) ? tablePerimeter.bottom() : insideHorizontal.bottom();
+                }
+                BorderDefinition.BorderEdge leftEdge = cellBorder.left();
+                if (leftEdge == null) {
+                    leftEdge = (columnIndex == 0) ? tablePerimeter.left() : insideVertical.left();
+                }
+                BorderDefinition.BorderEdge rightEdge = cellBorder.right();
+                if (rightEdge == null) {
+                    rightEdge = (columnIndex == columnCount - 1) ? tablePerimeter.right() : insideVertical.right();
+                }
+                BorderDefinition finalBorder = BorderDefinition.of(topEdge, rightEdge, bottomEdge, leftEdge);
+                builder.append(renderTableCell(cell, rowBackground, tableBackground, rowFallbacks, finalBorder));
             }
             builder.append("</tr>");
         }
@@ -68,7 +93,8 @@ final class TableRenderer {
     private String renderTableCell(WordDocument.TableCell cell,
                                    String rowBackground,
                                    String tableBackground,
-                                   List<WordDocument.RunProperties> rowRunFallbacks) {
+                                   List<WordDocument.RunProperties> rowRunFallbacks,
+                                   BorderDefinition borders) {
         List<WordDocument.RunProperties> effectiveFallbacks = rowRunFallbacks == null || rowRunFallbacks.isEmpty()
                 ? List.of()
                 : List.copyOf(rowRunFallbacks);
@@ -96,11 +122,10 @@ final class TableRenderer {
         if (Objects.equals(background, rowBackground) || Objects.equals(background, tableBackground)) {
             background = null;
         }
-        if (background != null) {
-            String cellClass = context.styleRegistry().registerCell(new TableCellCss(background));
-            if (cellClass != null) {
-                classes.add(cellClass);
-            }
+        TableCellCss cellCss = new TableCellCss(background, borders);
+        String cellClass = context.styleRegistry().registerCell(cellCss);
+        if (cellClass != null) {
+            classes.add(cellClass);
         }
         StringBuilder builder = new StringBuilder();
         builder.append("<td");

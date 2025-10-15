@@ -29,8 +29,8 @@ Les principales parties prenantes sont le developpeur actuel et les integrateurs
   - Mapping des couleurs de shading basees sur le theme (symptomes : `themeFill` applique partiellement -> tables conservent un gris par defaut) - statut : **resolu** le 2025-10-14 (cascade table/ligne/cellule + tests demo.docx).
 
 ## Prochaines etapes (reprendre vite)
-- [ ] Comprendre pourquoi le tableau demo.docx (cellules contenant 93/35/54/43) n'applique pas le background #D3DFEE et corriger le mapping theme/override.
-- [ ] Revoir la generation des bordures (taille/couleur/style) pour tableaux, paragraphes et autres elements HTML afin qu'elles refletent le DOCX.
+- [x] Comprendre pourquoi le tableau demo.docx (cellules contenant 93/35/54/43) n'applique pas le background #D3DFEE et corriger le mapping theme/override.
+- [x] Revoir la generation des bordures (taille/couleur/style) pour tableaux, paragraphes et autres elements HTML afin qu'elles refletent le DOCX.
 - [x] Restaurer une version compilable de WordDocument puis reappliquer la validation stricte bloc par bloc (vigilance : conserver les nouvelles classes Bookmark).
 - [ ] Finaliser ParsingContext et adapter tous les parseurs (RunParser, ParagraphParser, TableParser, BlockParser, NotesParser, StylesParser) pour lever des exceptions sur les balises inconnues (commande : mvn -q -DskipTests compile, vigilance : gerer les namespaces additionnels comme DrawingML).
 - [x] Ajouter des tests unitaires couvrant les fichiers \file-sample_*.docx, les charts et les cas d'erreur (commande : mvn -q test, vigilance : verifier chaque test avec des docx minimaux generes en memoire).
@@ -39,6 +39,8 @@ Les principales parties prenantes sont le developpeur actuel et les integrateurs
 - [x] Diagnostiquer le rendu HTML des tables (theme shading non respecte) : cascade verifiee sur demo.docx, test automatise ajoute.
 - 
 ## Journal des mises a jour
+- 2025-10-15 - Prise en compte de w:cnfStyle pour resoudre les bandes horizontales/verticales des tableaux (ResolvedTableStyle, TableRenderer).
+- 2025-10-15 - Harmonisation des bordures table/paragraph/run en CSS (BorderDefinition, TableRenderer, StyleResolver, tests HTML).
 - 2025-10-14 - Finalisation du shading des tables via les styles de tableau (tblStylePr) et ajout d'un test d'integration sur demo.docx (DocxToHtml, DocxToHtmlTest).
 - 2025-10-14 - Tentative de resolution des couleurs de shading via la palette de theme : extraction clrScheme, application tint/shade, paragraphes OK mais rendu table a reprendre (DocxToHtml).
 - 2025-10-14 - Ajout de tests Html ciblant shading paragraphe/table + correction du parsing booleen (XmlUtilsTest, DocxToHtmlTest).

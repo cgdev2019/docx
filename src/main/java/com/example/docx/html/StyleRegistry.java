@@ -39,21 +39,21 @@ final class StyleRegistry {
     }
 
     String registerTable(TableCss css) {
-        if (css == null || !css.hasColor()) {
+        if (css == null || !css.hasDeclarations()) {
             return null;
         }
         return tableClasses.computeIfAbsent(css, unused -> "t" + tableIndex++);
     }
 
     String registerRow(TableRowCss css) {
-        if (css == null || !css.hasColor()) {
+        if (css == null || !css.hasDeclarations()) {
             return null;
         }
         return rowClasses.computeIfAbsent(css, unused -> "r" + rowIndex++);
     }
 
     String registerCell(TableCellCss css) {
-        if (css == null || !css.hasColor()) {
+        if (css == null || !css.hasDeclarations()) {
             return null;
         }
         return cellClasses.computeIfAbsent(css, unused -> "c" + cellIndex++);
@@ -124,9 +124,9 @@ final class StyleRegistry {
         builder.append('\n');
         builder.append(".docx-body .docx-note-separator{display:block;border:0;border-top:1px solid #ccc;margin:1rem 0;}");
         builder.append('\n');
-        builder.append(".docx-body .docx-table{border-collapse:collapse;width:100%;margin:1rem 0;}");
+        builder.append(".docx-body .docx-table{border-collapse:collapse;border-spacing:0;width:100%;margin:1rem 0;}");
         builder.append('\n');
-        builder.append(".docx-body .docx-table td,.docx-body .docx-table th{border:1px solid #bbb;padding:0.35rem 0.5rem;vertical-align:top;}");
+        builder.append(".docx-body .docx-table td,.docx-body .docx-table th{border:0;padding:0.35rem 0.5rem;vertical-align:top;}");
         builder.append('\n');
         builder.append(".docx-body .docx-cell-middle{vertical-align:middle;}");
         builder.append('\n');
@@ -158,24 +158,32 @@ final class StyleRegistry {
             }
         }
         for (Map.Entry<TableCss, String> entry : tableClasses.entrySet()) {
-            String declarations = entry.getKey().declarations();
-            if (!declarations.isEmpty()) {
-                String className = entry.getValue();
-                builder.append(".docx-body table.").append(className).append("{").append(declarations).append("}");
+            TableCss css = entry.getKey();
+            String className = entry.getValue();
+            String tableDeclarations = css.tableDeclarations();
+            if (!tableDeclarations.isEmpty()) {
+                builder.append(".docx-body table.").append(className).append("{").append(tableDeclarations).append("}");
                 builder.append('\n');
+            }
+            String cascade = css.cellCascadeDeclarations();
+            if (!cascade.isEmpty()) {
                 builder.append(".docx-body table.").append(className).append(" td,.docx-body table.")
-                        .append(className).append(" th{").append(declarations).append("}");
+                        .append(className).append(" th{").append(cascade).append("}");
                 builder.append('\n');
             }
         }
         for (Map.Entry<TableRowCss, String> entry : rowClasses.entrySet()) {
-            String declarations = entry.getKey().declarations();
-            if (!declarations.isEmpty()) {
-                String className = entry.getValue();
-                builder.append(".docx-body tr.").append(className).append("{").append(declarations).append("}");
+            TableRowCss css = entry.getKey();
+            String className = entry.getValue();
+            String rowDeclarations = css.rowDeclarations();
+            if (!rowDeclarations.isEmpty()) {
+                builder.append(".docx-body tr.").append(className).append("{").append(rowDeclarations).append("}");
                 builder.append('\n');
+            }
+            String cascade = css.cellCascadeDeclarations();
+            if (!cascade.isEmpty()) {
                 builder.append(".docx-body tr.").append(className).append(" > td,.docx-body tr.")
-                        .append(className).append(" > th{").append(declarations).append("}");
+                        .append(className).append(" > th{").append(cascade).append("}");
                 builder.append('\n');
             }
         }

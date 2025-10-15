@@ -112,8 +112,18 @@ final class StyleResolver {
                 }
             }
         }
+        BorderDefinition border = DocxHtmlUtils.paragraphBorders(effective, themeColors);
+        if (border == null || border.isEmpty()) {
+            for (WordDocument.ParagraphProperties fallback : paragraphFallbacks) {
+                BorderDefinition candidate = DocxHtmlUtils.paragraphBorders(fallback, themeColors);
+                if (candidate != null && !candidate.isEmpty()) {
+                    border = candidate;
+                    break;
+                }
+            }
+        }
 
-        return new ResolvedParagraph(alignment, indentation, spacing, keepTogether, keepWithNext, pageBreakBefore, shading, List.copyOf(runFallbacks));
+        return new ResolvedParagraph(alignment, indentation, spacing, keepTogether, keepWithNext, pageBreakBefore, shading, border, List.copyOf(runFallbacks));
     }
 
     ResolvedRun resolveRun(WordDocument.RunProperties properties, ResolvedParagraph paragraph) {
@@ -199,10 +209,19 @@ final class StyleResolver {
             size = complexSize;
         }
         List<String> fontStack = DocxHtmlUtils.computeFontStack(fonts);
+        BorderDefinition border = BorderDefinition.empty();
+        for (WordDocument.RunProperties runProperties : cascade) {
+            BorderDefinition candidate = DocxHtmlUtils.runBorders(runProperties, themeColors);
+            if (candidate != null && !candidate.isEmpty()) {
+                border = candidate;
+                break;
+            }
+        }
+
         return new ResolvedRun(bold, italic, underline, underlineType, strike, doubleStrike,
                 smallCaps, allCaps, vanish, Optional.ofNullable(color),
                 Optional.ofNullable(highlight), Optional.ofNullable(verticalAlign),
-                Optional.ofNullable(size), fontStack);
+                Optional.ofNullable(size), fontStack, border);
     }
 
     private List<StyleDefinitions.Style> styleChain(String styleId) {
@@ -401,13 +420,23 @@ final class StyleResolver {
         }
         Map<TableStyleRegion, RegionStyle> regions = new EnumMap<>(TableStyleRegion.class);
         String tableBackground = null;
+        BorderDefinition tablePerimeter = BorderDefinition.empty();
+        BorderDefinition insideHorizontal = BorderDefinition.empty();
+        BorderDefinition insideVertical = BorderDefinition.empty();
 
         for (StyleDefinitions.Style style : styleChain(styleId)) {
-            if (tableBackground == null) {
-                tableBackground = style.tableProperties()
-                        .flatMap(StyleDefinitions.TableStyleProperties::rawProperties)
-                        .map(element -> DocxHtmlUtils.shadingColorFromElement(element, themeColors))
-                        .orElse(null);
+            StyleDefinitions.TableStyleProperties tableProps = style.tableProperties().orElse(null);
+            if (tableProps != null) {
+                Element raw = tableProps.rawProperties().orElse(null);
+                if (raw != null) {
+                    if (tableBackground == null) {
+                        tableBackground = DocxHtmlUtils.shadingColorFromElement(raw, themeColors);
+                    }
+                    DocxHtmlUtils.TableBorders borders = DocxHtmlUtils.tableBordersFromRaw(raw, themeColors);
+                    tablePerimeter = tablePerimeter.fillMissing(borders.perimeter());
+                    insideHorizontal = insideHorizontal.fillMissing(borders.insideHorizontal());
+                    insideVertical = insideVertical.fillMissing(borders.insideVertical());
+                }
             }
             style.rawStyle().ifPresent(raw -> {
                 for (Element tblStylePr : XmlUtils.children(raw, Namespaces.WORD_MAIN, "tblStylePr")) {
@@ -423,7 +452,7 @@ final class StyleResolver {
                 }
             });
         }
-        return new ResolvedTableStyle(tableBackground, regions);
+        return new ResolvedTableStyle(tableBackground, regions, tablePerimeter, insideHorizontal, insideVertical);
     }
 
     private RegionStyle parseTableRegion(Element tblStylePr) {
@@ -438,10 +467,15 @@ final class StyleResolver {
         }
         Element rPr = XmlUtils.firstChild(tblStylePr, Namespaces.WORD_MAIN, "rPr").orElse(null);
         WordDocument.RunProperties runProperties = toRunProperties(rPr);
-        if (background == null && runProperties == null) {
+        BorderDefinition borders = BorderDefinition.empty();
+        if (tcPr != null) {
+            WordDocument.TableCellProperties fake = new WordDocument.TableCellProperties(null, null, null, null, false, tcPr);
+            borders = DocxHtmlUtils.tableCellBorders(fake, themeColors);
+        }
+        if (background == null && runProperties == null && (borders == null || borders.isEmpty())) {
             return null;
         }
-        return new RegionStyle(background, runProperties);
+        return new RegionStyle(background, runProperties, borders == null ? BorderDefinition.empty() : borders);
     }
 
     public enum TableStyleRegion {
@@ -475,7 +509,8 @@ final class StyleResolver {
     }
 
     public record RegionStyle(String backgroundColor,
-                               WordDocument.RunProperties runProperties) {
+                               WordDocument.RunProperties runProperties,
+                               BorderDefinition borders) {
     }
 
     public record ResolvedParagraph(WordDocument.Alignment alignment,
@@ -485,6 +520,7 @@ final class StyleResolver {
                              boolean keepWithNext,
                              boolean pageBreakBefore,
                              String shadingColor,
+                             BorderDefinition border,
                              List<WordDocument.RunProperties> runFallbacks) {
     }
 
@@ -501,6 +537,7 @@ final class StyleResolver {
                        Optional<String> highlight,
                        Optional<String> verticalAlignment,
                        Optional<Integer> fontSizeHalfPoints,
-                       List<String> fontStack) {
+                       List<String> fontStack,
+                       BorderDefinition border) {
     }
 }

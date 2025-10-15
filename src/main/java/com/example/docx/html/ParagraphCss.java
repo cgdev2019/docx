@@ -16,11 +16,12 @@ record ParagraphCss(String textAlign,
                     CssLength fontSize,
                     String fontFamily,
                     String backgroundColor,
+                    BorderDefinition borders,
                     boolean keepTogether,
                     boolean keepWithNext,
                     boolean pageBreakBefore) {
     public static ParagraphCss empty() {
-        return new ParagraphCss(null, null, null, null, null, null, null, null, null, null, false, false, false);
+        return new ParagraphCss(null, null, null, null, null, null, null, null, null, null, BorderDefinition.empty(), false, false, false);
     }
 
     public static ParagraphCss from(StyleResolver.ResolvedParagraph resolved, StyleResolver.ResolvedRun defaultRun) {
@@ -44,8 +45,8 @@ record ParagraphCss(String textAlign,
         }
         String background = resolved.shadingColor();
         return new ParagraphCss(DocxHtmlUtils.alignmentToCss(resolved.alignment()), top, bottom, left, right, indent,
-                lineHeight, paragraphFontSize, paragraphFontFamily, background, resolved.keepTogether(),
-                resolved.keepWithNext(), resolved.pageBreakBefore());
+                lineHeight, paragraphFontSize, paragraphFontFamily, background, resolved.border(),
+                resolved.keepTogether(), resolved.keepWithNext(), resolved.pageBreakBefore());
     }
 
     String declarations() {
@@ -79,6 +80,9 @@ record ParagraphCss(String textAlign,
         }
         if (backgroundColor != null) {
             items.add("background-color:" + backgroundColor);
+        }
+        if (borders != null && !borders.isEmpty()) {
+            borders.appendCss(items);
         }
         if (keepTogether) {
             items.add("page-break-inside:avoid");

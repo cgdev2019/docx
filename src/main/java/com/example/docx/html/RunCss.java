@@ -14,12 +14,14 @@ record RunCss(boolean bold,
               boolean allCaps,
               String color,
               String backgroundColor,
+              BorderDefinition borders,
               CssLength fontSize,
               String fontFamily,
               String verticalAlign) {
 
     static RunCss empty() {
-        return new RunCss(false, false, false, Set.of(), null, false, false, null, null, null, null, null);
+        return new RunCss(false, false, false, Set.of(), null, false, false, null, null,
+                BorderDefinition.empty(), null, null, null);
     }
 
     static RunCss from(StyleResolver.ResolvedRun resolved) {
@@ -42,7 +44,7 @@ record RunCss(boolean bold,
         }
         return new RunCss(resolved.bold(), resolved.italic(), underline, Set.copyOf(lines),
                 decorationStyle, resolved.smallCaps(), resolved.allCaps(), color,
-                background, fontSize, fontFamily, verticalAlign);
+                background, resolved.border(), fontSize, fontFamily, verticalAlign);
     }
 
     String declarations() {
@@ -64,6 +66,9 @@ record RunCss(boolean bold,
         }
         if (backgroundColor != null) {
             items.add("background-color:" + backgroundColor);
+        }
+        if (borders != null && !borders.isEmpty()) {
+            borders.appendCss(items);
         }
         if (smallCaps) {
             items.add("font-variant:small-caps");
