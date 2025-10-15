@@ -39,7 +39,7 @@ Les principales parties prenantes sont le developpeur actuel et les integrateurs
 - [x] Diagnostiquer le rendu HTML des tables (theme shading non respecte) : cascade verifiee sur demo.docx, test automatise ajoute.
 - 
 ## Journal des mises a jour
-- 2025-10-15 - Finalisation du shading des tables via les styles de tableau (tblStylePr) et ajout d'un test d'integration sur demo.docx (DocxToHtml, DocxToHtmlTest).
+- 2025-10-14 - Finalisation du shading des tables via les styles de tableau (tblStylePr) et ajout d'un test d'integration sur demo.docx (DocxToHtml, DocxToHtmlTest).
 - 2025-10-14 - Tentative de resolution des couleurs de shading via la palette de theme : extraction clrScheme, application tint/shade, paragraphes OK mais rendu table a reprendre (DocxToHtml).
 - 2025-10-14 - Ajout de tests Html ciblant shading paragraphe/table + correction du parsing booleen (XmlUtilsTest, DocxToHtmlTest).
 - 2025-10-14 - Ajout du convertisseur Docx->HTML avec feuille de style centralisee et gabarit ecran A4 (DocxToHtml).
